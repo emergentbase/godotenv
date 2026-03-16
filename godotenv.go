@@ -113,9 +113,36 @@ func Unmarshal(str string) (envMap map[string]string, err error) {
 // UnmarshalBytes parses env file from byte slice of chars, returning a map of keys and values.
 func UnmarshalBytes(src []byte) (map[string]string, error) {
 	out := make(map[string]string)
-	err := parseBytes(src, out)
+	err := parseBytes(src, out, false)
 
 	return out, err
+}
+
+// ReadNoExpand is like Read but does not expand variable references ($VAR, ${VAR}).
+// Values containing dollar signs are preserved as-is.
+func ReadNoExpand(filenames ...string) (envMap map[string]string, err error) {
+	filenames = filenamesOrDefault(filenames)
+	envMap = make(map[string]string)
+
+	for _, filename := range filenames {
+		f, openErr := os.Open(filename)
+		if openErr != nil {
+			return nil, openErr
+		}
+
+		var buf bytes.Buffer
+		_, copyErr := io.Copy(&buf, f)
+		f.Close()
+		if copyErr != nil {
+			return nil, copyErr
+		}
+
+		if parseErr := parseBytes(buf.Bytes(), envMap, true); parseErr != nil {
+			return nil, parseErr
+		}
+	}
+
+	return
 }
 
 // Exec loads env vars from the specified filenames (empty map falls back to default)

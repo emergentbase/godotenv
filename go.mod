@@ -1,3 +1,3 @@
-module github.com/joho/godotenv
+module github.com/emergentbase/godotenv
 
 go 1.12

@@ -18,7 +18,7 @@ const (
 	exportPrefix = "export"
 )
 
-func parseBytes(src []byte, out map[string]string) error {
+func parseBytes(src []byte, out map[string]string, noExpand bool) error {
 	src = bytes.Replace(src, []byte("\r\n"), []byte("\n"), -1)
 	cutset := src
 	for {
@@ -33,7 +33,7 @@ func parseBytes(src []byte, out map[string]string) error {
 			return err
 		}
 
-		value, left, err := extractVarValue(left, out)
+		value, left, err := extractVarValue(left, out, noExpand)
 		if err != nil {
 			return err
 		}
@@ -118,7 +118,7 @@ loop:
 }
 
 // extractVarValue extracts variable value and returns rest of slice
-func extractVarValue(src []byte, vars map[string]string) (value string, rest []byte, err error) {
+func extractVarValue(src []byte, vars map[string]string, noExpand bool) (value string, rest []byte, err error) {
 	quote, hasPrefix := hasQuotePrefix(src)
 	if !hasPrefix {
 		// unquoted value - read until end of line
@@ -155,6 +155,9 @@ func extractVarValue(src []byte, vars map[string]string) (value string, rest []b
 
 		trimmed := strings.TrimFunc(string(line[0:endOfVar]), isSpace)
 
+		if noExpand {
+			return trimmed, src[endOfLine:], nil
+		}
 		return expandVariables(trimmed, vars), src[endOfLine:], nil
 	}
 
@@ -173,9 +176,14 @@ func extractVarValue(src []byte, vars map[string]string) (value string, rest []b
 		trimFunc := isCharFunc(rune(quote))
 		value = string(bytes.TrimLeftFunc(bytes.TrimRightFunc(src[0:i], trimFunc), trimFunc))
 		if quote == prefixDoubleQuote {
-			// unescape newlines for double quote (this is compat feature)
-			// and expand environment variables
-			value = expandVariables(expandEscapes(value), vars)
+			if noExpand {
+				// unescape newlines but do not expand variables
+				value = expandEscapes(value)
+			} else {
+				// unescape newlines for double quote (this is compat feature)
+				// and expand environment variables
+				value = expandVariables(expandEscapes(value), vars)
+			}
 		}
 
 		return value, src[i+1:], nil
