@@ -90,7 +90,7 @@ func Read(filenames ...string) (envMap map[string]string, err error) {
 	envMap = make(map[string]string)
 
 	for _, filename := range filenames {
-		individualEnvMap, individualErr := readFile(filename)
+		individualEnvMap, individualErr := readFile(filename, false)
 
 		if individualErr != nil {
 			err = individualErr
@@ -113,9 +113,31 @@ func Unmarshal(str string) (envMap map[string]string, err error) {
 // UnmarshalBytes parses env file from byte slice of chars, returning a map of keys and values.
 func UnmarshalBytes(src []byte) (map[string]string, error) {
 	out := make(map[string]string)
-	err := parseBytes(src, out)
+	err := parseBytes(src, out, false)
 
 	return out, err
+}
+
+// ReadNoExpand is like Read but does not expand variable references ($VAR, ${VAR}).
+// Values containing dollar signs are preserved as-is.
+func ReadNoExpand(filenames ...string) (envMap map[string]string, err error) {
+	filenames = filenamesOrDefault(filenames)
+	envMap = make(map[string]string)
+
+	for _, filename := range filenames {
+		individualEnvMap, individualErr := readFile(filename, true)
+
+		if individualErr != nil {
+			err = individualErr
+			return
+		}
+
+		for key, value := range individualEnvMap {
+			envMap[key] = value
+		}
+	}
+
+	return
 }
 
 // Exec loads env vars from the specified filenames (empty map falls back to default)
@@ -182,7 +204,7 @@ func filenamesOrDefault(filenames []string) []string {
 }
 
 func loadFile(filename string, overload bool) error {
-	envMap, err := readFile(filename)
+	envMap, err := readFile(filename, false)
 	if err != nil {
 		return err
 	}
@@ -203,14 +225,22 @@ func loadFile(filename string, overload bool) error {
 	return nil
 }
 
-func readFile(filename string) (envMap map[string]string, err error) {
+func readFile(filename string, noExpand bool) (envMap map[string]string, err error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return
 	}
 	defer file.Close()
 
-	return Parse(file)
+	var buf bytes.Buffer
+	_, err = io.Copy(&buf, file)
+	if err != nil {
+		return
+	}
+
+	out := make(map[string]string)
+	err = parseBytes(buf.Bytes(), out, noExpand)
+	return out, err
 }
 
 func doubleQuoteEscape(line string) string {
