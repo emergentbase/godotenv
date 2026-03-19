@@ -90,7 +90,7 @@ func Read(filenames ...string) (envMap map[string]string, err error) {
 	envMap = make(map[string]string)
 
 	for _, filename := range filenames {
-		individualEnvMap, individualErr := readFile(filename)
+		individualEnvMap, individualErr := readFile(filename, false)
 
 		if individualErr != nil {
 			err = individualErr
@@ -125,20 +125,15 @@ func ReadNoExpand(filenames ...string) (envMap map[string]string, err error) {
 	envMap = make(map[string]string)
 
 	for _, filename := range filenames {
-		f, openErr := os.Open(filename)
-		if openErr != nil {
-			return nil, openErr
+		individualEnvMap, individualErr := readFile(filename, true)
+
+		if individualErr != nil {
+			err = individualErr
+			return
 		}
 
-		var buf bytes.Buffer
-		_, copyErr := io.Copy(&buf, f)
-		f.Close()
-		if copyErr != nil {
-			return nil, copyErr
-		}
-
-		if parseErr := parseBytes(buf.Bytes(), envMap, true); parseErr != nil {
-			return nil, parseErr
+		for key, value := range individualEnvMap {
+			envMap[key] = value
 		}
 	}
 
@@ -209,7 +204,7 @@ func filenamesOrDefault(filenames []string) []string {
 }
 
 func loadFile(filename string, overload bool) error {
-	envMap, err := readFile(filename)
+	envMap, err := readFile(filename, false)
 	if err != nil {
 		return err
 	}
@@ -230,14 +225,22 @@ func loadFile(filename string, overload bool) error {
 	return nil
 }
 
-func readFile(filename string) (envMap map[string]string, err error) {
+func readFile(filename string, noExpand bool) (envMap map[string]string, err error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return
 	}
 	defer file.Close()
 
-	return Parse(file)
+	var buf bytes.Buffer
+	_, err = io.Copy(&buf, file)
+	if err != nil {
+		return
+	}
+
+	out := make(map[string]string)
+	err = parseBytes(buf.Bytes(), out, noExpand)
+	return out, err
 }
 
 func doubleQuoteEscape(line string) string {
