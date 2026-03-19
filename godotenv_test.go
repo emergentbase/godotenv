@@ -212,7 +212,7 @@ func TestSubstitutions(t *testing.T) {
 		"OPTION_B": "1",
 		"OPTION_C": "1",
 		"OPTION_D": "11",
-		"OPTION_E": "",
+		"OPTION_E": "${OPTION_NOT_DEFINED}",
 	}
 
 	loadEnvAndCompareValues(t, Load, envFileName, expectedValues, noopPresets)
@@ -235,9 +235,9 @@ func TestExpanding(t *testing.T) {
 			map[string]string{"FOO": "test", "BAR": "testbar"},
 		},
 		{
-			"expands undefined variables to an empty string",
+			"preserves undefined variables as-is",
 			"BAR=$FOO",
-			map[string]string{"BAR": ""},
+			map[string]string{"BAR": "$FOO"},
 		},
 		{
 			"expands variables in double quoted strings",
