@@ -207,15 +207,21 @@ func TestLoadQuotedEnv(t *testing.T) {
 
 func TestSubstitutions(t *testing.T) {
 	envFileName := "fixtures/substitutions.env"
+
+	presets := map[string]string{
+		"GLOBAL_OPTION": "global",
+	}
+
 	expectedValues := map[string]string{
 		"OPTION_A": "1",
 		"OPTION_B": "1",
 		"OPTION_C": "1",
 		"OPTION_D": "11",
 		"OPTION_E": "${OPTION_NOT_DEFINED}",
+		"OPTION_F": "global",
 	}
 
-	loadEnvAndCompareValues(t, Load, envFileName, expectedValues, noopPresets)
+	loadEnvAndCompareValues(t, Load, envFileName, expectedValues, presets)
 }
 
 func TestExpanding(t *testing.T) {
@@ -471,9 +477,12 @@ func TestErrorParsing(t *testing.T) {
 func TestComments(t *testing.T) {
 	envFileName := "fixtures/comments.env"
 	expectedValues := map[string]string{
-		"foo": "bar",
-		"bar": "foo#baz",
-		"baz": "foo",
+		"qux":  "thud",
+		"thud": "fred#qux",
+		"fred": "qux#baz",
+		"foo":  "bar",
+		"bar":  "foo#baz",
+		"baz":  "foo",
 	}
 
 	loadEnvAndCompareValues(t, Load, envFileName, expectedValues, noopPresets)
@@ -558,6 +567,67 @@ func TestTrailingNewlines(t *testing.T) {
 			input: "KEY: value value\n",
 			key:   "KEY",
 			value: "value value",
+		},
+	}
+
+	for n, c := range cases {
+		t.Run(n, func(t *testing.T) {
+			result, err := Unmarshal(c.input)
+			if err != nil {
+				t.Errorf("Input: %q Unexpected error:\t%q", c.input, err)
+			}
+			if result[c.key] != c.value {
+				t.Errorf("Input %q Expected:\t %q/%q\nGot:\t %q", c.input, c.key, c.value, result)
+			}
+		})
+	}
+}
+
+func TestWhitespace(t *testing.T) {
+	cases := map[string]struct {
+		input string
+		key   string
+		value string
+	}{
+		"Leading whitespace": {
+			input: " A=a\n",
+			key:   "A",
+			value: "a",
+		},
+		"Leading tab": {
+			input: "\tA=a\n",
+			key:   "A",
+			value: "a",
+		},
+		"Leading mixed whitespace": {
+			input: " \t \t\n\t \t A=a\n",
+			key:   "A",
+			value: "a",
+		},
+		"Leading whitespace before export": {
+			input: " \t\t export    A=a\n",
+			key:   "A",
+			value: "a",
+		},
+		"Trailing whitespace": {
+			input: "A=a \t \t\n",
+			key:   "A",
+			value: "a",
+		},
+		"Trailing whitespace with export": {
+			input: "export A=a\t \t \n",
+			key:   "A",
+			value: "a",
+		},
+		"No EOL": {
+			input: "A=a",
+			key:   "A",
+			value: "a",
+		},
+		"Trailing whitespace with no EOL": {
+			input: "A=a ",
+			key:   "A",
+			value: "a",
 		},
 	}
 
