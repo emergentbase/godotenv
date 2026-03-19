@@ -271,7 +271,10 @@ func expandVariables(v string, m map[string]string) string {
 		if submatch[1] == "\\" || submatch[2] == "(" {
 			return submatch[0][1:]
 		} else if submatch[4] != "" {
-			return m[submatch[4]]
+			if val, ok := m[submatch[4]]; ok {
+				return val
+			}
+			return s
 		}
 		return s
 	})
