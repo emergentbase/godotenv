@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 	"unicode"
@@ -142,8 +143,8 @@ func extractVarValue(src []byte, vars map[string]string, noExpand bool) (value s
 		}
 
 		// Work backwards to check if the line ends in whitespace then
-		// a comment (ie asdasd # some comment)
-		for i := endOfVar - 1; i >= 0; i-- {
+		// a comment, ie: foo=bar # baz # other
+		for i := 0; i < endOfVar; i++ {
 			if line[i] == charComment && i > 0 {
 				if isSpace(line[i-1]) {
 					endOfVar = i
@@ -176,6 +177,7 @@ func extractVarValue(src []byte, vars map[string]string, noExpand bool) (value s
 		value = string(bytes.TrimLeftFunc(bytes.TrimRightFunc(src[0:i], trimFunc), trimFunc))
 		if quote == prefixDoubleQuote {
 			if noExpand {
+				// unescape newlines but do not expand variables
 				value = expandEscapes(value)
 			} else {
 				// unescape newlines for double quote (this is compat feature)
@@ -218,7 +220,7 @@ func indexOfNonSpaceChar(src []byte) int {
 }
 
 // hasQuotePrefix reports whether charset starts with single or double quote and returns quote character
-func hasQuotePrefix(src []byte) (prefix byte, isQuored bool) {
+func hasQuotePrefix(src []byte) (prefix byte, isQuoted bool) {
 	if len(src) == 0 {
 		return 0, false
 	}
@@ -272,6 +274,9 @@ func expandVariables(v string, m map[string]string) string {
 			return submatch[0][1:]
 		} else if submatch[4] != "" {
 			if val, ok := m[submatch[4]]; ok {
+				return val
+			}
+			if val, ok := os.LookupEnv(submatch[4]); ok {
 				return val
 			}
 			return s
