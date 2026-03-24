@@ -145,7 +145,7 @@ func extractVarValue(src []byte, vars map[string]string, noExpand bool) (value s
 		// Work backwards to check if the line ends in whitespace then
 		// a comment, ie: foo=bar # baz # other
 		for i := 0; i < endOfVar; i++ {
-			if line[i] == charComment && i < endOfVar {
+			if line[i] == charComment && i > 0 {
 				if isSpace(line[i-1]) {
 					endOfVar = i
 					break
@@ -279,7 +279,7 @@ func expandVariables(v string, m map[string]string) string {
 			if val, ok := os.LookupEnv(submatch[4]); ok {
 				return val
 			}
-			return m[submatch[4]]
+			return s
 		}
 		return s
 	})

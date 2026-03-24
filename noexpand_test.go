@@ -137,11 +137,11 @@ func TestNoExpandWithFile(t *testing.T) {
 func TestNoExpandOriginalBugScenario(t *testing.T) {
 	input := []byte(`TWILIO_SECRET=$12345$vrimcongri$^%$#$12345`)
 
-	// Default (expansion ON) — corrupts the value
+	// Default (expansion ON) — undefined vars now pass through instead of being corrupted
 	expanded := make(map[string]string)
 	parseBytes(input, expanded, false)
-	if expanded["TWILIO_SECRET"] != "$vrimcongri$^%$#" {
-		t.Errorf("Default parse: expected corrupted value, got %q", expanded["TWILIO_SECRET"])
+	if expanded["TWILIO_SECRET"] != "$12345$vrimcongri$^%$#$12345" {
+		t.Errorf("Default parse: expected preserved value, got %q", expanded["TWILIO_SECRET"])
 	}
 
 	// NoExpand — preserves the value
